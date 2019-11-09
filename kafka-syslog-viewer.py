@@ -1,12 +1,15 @@
+#!/usr/bin/python3
 
 import signal
 import sys
 import argparse
-import time
+from datetime import datetime
 
 import json
 
 import kafka
+
+from termcolor import colored
 
 
 def sigint_handler(_signal, _frame):
@@ -14,13 +17,29 @@ def sigint_handler(_signal, _frame):
     sys.exit(0)
 
 
-def print_syslog_entry(entry):
-    print(entry)
+def print_syslog_entry(offset, entry):
+    msgcolor = 'white' if entry['severity'] in ['notice', 'info', 'debug'] else 'red'
+
+    dt = datetime.strptime(entry['timestamp'], '%Y-%m-%dT%H:%M:%S.%f%z')
+
+    print("{date} {time} {host:32} {lvl:12} {fac}".format(
+        ofs=colored(offset, 'white'),
+        date=colored(datetime.strftime(dt, '%Y-%m-%d'), 'white'),
+        time=colored(datetime.strftime(dt, '%H:%M:%S'), 'white', attrs=['bold']),
+        host=colored(entry['host'], 'yellow'),
+        lvl=colored(entry['severity'], msgcolor),
+        fac=colored(entry['facility'], 'white')
+    ))
+
+    print("{0} {1}".format(colored(entry['syslog-tag'], msgcolor),
+                           colored(entry['message'], msgcolor, attrs=['bold'])))
+
+    print()
 
 
 def follow_syslog(consumer):
     for entry in consumer:
-        print_syslog_entry(entry)
+        print_syslog_entry(entry.offset, entry.value)
 
 
 def main():
